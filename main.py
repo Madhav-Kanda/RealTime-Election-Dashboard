@@ -30,12 +30,13 @@ def create_tables(conn, cur):
             gender VARCHAR(255),
             nationality VARCHAR(255),
             registration_number VARCHAR(255),
+            address_street VARCHAR(255),
             address_city VARCHAR(255),
             address_state VARCHAR(255),
             address_country VARCHAR(255),
             address_postcode VARCHAR(255),
             email VARCHAR(255),
-            phone_number VARCHAR(255),
+            phone VARCHAR(255),
             picture TEXT,
             registered_age INTEGER
             )
@@ -99,28 +100,33 @@ def insert_voters(conn, cur, voter):
                 INSERT INTO voters(voter_id, voter_name, date_of_birth, gender, nationality, registration_number, address_street, address_city, address_state, address_country, address_postcode, email, phone, picture, registered_age)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,(
-                    voter['voter_id'], voter['voter_name'], voter['date_of_birth'], voter['gender'], voter['nationality'], voter['registration_number'], voter['address_street'], voter['address_city'], voter['address_state'], voter['address_country'], voter['address_postcode'], voter['email'], voter['phone'], voter['picture'], voter['registered_age']
+                    voter['voter_id'], voter['voter_name'], voter['date_of_birth'], voter['gender'], voter['nationality'], voter['registration_number'], voter['address']['street'], voter['address']['city'], voter['address']['state'], voter['address']['country'], voter['address']['postcode'], voter['email'], voter['phone'], voter['picture'], voter['registered_age']
                 ))
     conn.commit()
+
+
+def delivery_report(err, msg):
+    if err is not None:
+        print(f"Message delivery failed:{err}")
+    else:
+        print(f"Message delivered to {msg.topic()} [{msg.partition()}]")
 
 if __name__ =='__main__':
     producer = SerializingProducer({'bootstrap.servers': 'localhost:9092'})
     try:
         conn = psycopg2.connect("host=localhost dbname=voting user=postgres password=postgres")
         cur = conn.cursor()
-
+        
         create_tables(conn, cur)
         cur.execute(""" 
             SELECT * FROM candidates
         """)
         candidates = cur.fetchall()
-        print(candidates)
         
         total_candidates = 3
         if len(candidates) == 0:
             for i in range(total_candidates):
                 candidate = generate_candidate_data(i, total_candidates)
-                print(candidate)
                 cur.execute("""
                             INSERT INTO candidates(candidate_id, candidate_name, party_affiliation, biography, campaign_platform, photo_url)
                             VALUES(%s, %s, %s, %s, %s, %s)
@@ -133,6 +139,7 @@ if __name__ =='__main__':
         for i in range(1000):
             voter_data = generate_voter_data()
             insert_voters(conn, cur, voter_data)
+            print(voter_data)
             producer.produce(
                 "voter_topic",
                 key = voter_data['voter_id'],
@@ -140,6 +147,8 @@ if __name__ =='__main__':
                 on_delivery = delivery_report
             )
 
+            print('Produced voter {}, data:{}'.format(i, voter_data))
+            producer.flush()
 
     except Exception as e:
         print(e)
