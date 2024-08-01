@@ -1,4 +1,11 @@
 import psycopg2
+import requests
+import random
+
+BASE_URL = 'https://randomuser.me/api/?nat=gb'
+PARTIES = ['Management Party', 'Savior Party', 'Tech Republic Party']
+
+random.seed(21)
 
 def create_tables(conn, cur):
     cur.execute(
@@ -44,12 +51,49 @@ def create_tables(conn, cur):
     
     conn.commit()
 
+
+def generate_candidate_data(candidate_number, total_parties):
+    response = requests.get(BASE_URL+'&gender='+('female' if candidate_number%2 == 1 else 'male'))
+    if response.status_code == 200:
+        user_data = response.json()['results'][0]
+
+        return {
+            'candidate_id': user_data['login']['uuid'],
+            'candidate_name': f"{user_data['name']['first']} {user_data['name']['last']}",
+            'party_affiliation': PARTIES[candidate_number%total_parties],
+            'biography': 'A brief biography of the candidate',
+            'campaign_platform': "Key campaign promises and or platform",
+            'photo_url': user_data['picture']['large']
+        }
+    else:
+        return "Error fetching data"
+
+
 if __name__ =='__main__':
     try:
         conn = psycopg2.connect("host=localhost dbname=voting user=postgres password=postgres")
         cur = conn.cursor()
 
         create_tables(conn, cur)
+        cur.execute(""" 
+            SELECT * FROM candidates
+        """)
+        candidates = cur.fetchall()
+        print(candidates)
+        
+        total_candidates = 3
+        if len(candidates) == 0:
+            for i in range(total_candidates):
+                candidate = generate_candidate_data(i, total_candidates)
+                print(candidate)
+                cur.execute("""
+                            INSERT INTO candidates(candidate_id, candidate_name, party_affiliation, biography, campaign_platform, photo_url)
+                            VALUES(%s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            candidate['candidate_id'], candidate['candidate_name'], candidate['party_affiliation'], candidate['biography'], candidate['campaign_platform'], candidate['photo_url']
+                        ))
+                conn.commit()
 
     except Exception as e:
         print(e)
