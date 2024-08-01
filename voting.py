@@ -4,6 +4,7 @@ import simplejson as json
 import random
 from datetime import datetime
 from main import delivery_report
+import time
 
 conf = {
     "bootstrap.servers": 'localhost:9092'
@@ -35,11 +36,11 @@ if __name__ == "__main__":
     else:
         print(candidates)
 
-    consumer.subsribe(['voters-topic'])
+    consumer.subscribe(['voter_topic'])
 
     try:
         while True:
-            msg = consumer.poll(timout=1.0)
+            msg = consumer.poll(timeout=1.0)
             if msg is None:
                 continue
             elif msg.error():
@@ -72,6 +73,6 @@ if __name__ == "__main__":
                     producer.poll(0)
                 except Exception as e:
                     print('Error',e)
-
+            time.sleep(0.5)
     except Exception as e:
         print(e)
