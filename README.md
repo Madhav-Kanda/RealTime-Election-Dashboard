@@ -2,7 +2,6 @@
 
 This project is a Streamlit-based web application that provides real-time visualization of randomly generated presidential election results in the United States. It uses Kafka for real-time data streaming, PostgreSQL for database management, Apache Spark for data processing, and Docker for containerization. The application displays various metrics including total voters, votes by candidate, and leading parties by state, along with interactive charts and maps.
 
-## Screenshots
 <img width="1470" alt="image" src="https://github.com/user-attachments/assets/a515399c-9256-4e49-8be3-4e33ba070dbd">
 <img width="1470" alt="image" src="https://github.com/user-attachments/assets/24ac035e-d2de-4b3f-8d99-eac000e488e4">
 
