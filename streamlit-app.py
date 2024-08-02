@@ -7,64 +7,72 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from streamlit_autorefresh import st_autorefresh
+import plotly.express as px
 
 @st.cache_data
 def fetch_voting_stats():
     conn = psycopg2.connect("host=localhost dbname=voting user=postgres password=postgres")
     cur = conn.cursor()
-
+    
     # Fetch total number of voters
-    cur.execute("""
-            SELECT count(*) voters_count from voters
-    """)
+    cur.execute("SELECT COUNT(*) FROM voters")
     voters_count = cur.fetchone()[0]
-
+    
     # Fetch total number of candidates
-    cur.execute(""" 
-            SELECT count(*) candidates_count from candidates
-    """)
-
+    cur.execute("SELECT COUNT(*) FROM candidates")
     candidates_count = cur.fetchone()[0]
-
+    
     return voters_count, candidates_count
-
 
 def create_kafka_consumer(topic_name):
     consumer = KafkaConsumer(
         topic_name,
         bootstrap_servers='localhost:9092',
         auto_offset_reset='earliest',
-        value_deserializer=lambda x:json.loads(x.decode('utf-8'))
+        value_deserializer=lambda x: json.loads(x.decode('utf-8'))
     )
     return consumer
 
 def fetch_data_from_kafka(consumer):
     messages = consumer.poll(timeout_ms=1000)
-    data=[]
-
+    data = []
     for message in messages.values():
         for sub_message in message:
             data.append(sub_message.value)
-
     return data
 
 def plot_colored_bar_chart(results):
     data_type = results['candidate_name']
-    colors = plt.cm.viridis(np.linspace(0,1,len(data_type)))
+    colors = plt.cm.viridis(np.linspace(0, 1, len(data_type)))
     plt.bar(data_type, results['total_votes'], color=colors)
     plt.xlabel('Candidate')
-    plt.ylabel("Total Votes")
+    plt.ylabel('Total Votes')
     plt.xticks(rotation=90)
+    plt.title('Total Votes by Candidate')
     return plt
 
 def plot_donut_chart(data):
     labels = list(data['candidate_name'])
     sizes = list(data['total_votes'])
-
     fig, ax = plt.subplots()
-    ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
+    ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140, wedgeprops=dict(width=0.3))
     ax.axis('equal')
-    plt.title("Candidates Votes")
+    plt.title("Candidates' Votes Distribution")
+    return fig
+
+def plot_us_map(state_results):
+    fig = px.choropleth(state_results,
+                        locations='state', 
+                        locationmode="USA-states", 
+                        color='leading_party',
+                        scope="usa",
+                        color_discrete_map={
+                            "Demo Party": "blue",
+                            "Republic Party": "red"
+                        },
+                        hover_name='state',
+                        hover_data=['total_votes'])
+    fig.update_layout(title_text='Leading Party by State', geo_scope='usa')
     return fig
 
 @st.cache_data(show_spinner=False)
@@ -75,56 +83,38 @@ def split_frame(input_df, rows):
 def paginate_table(table_data):
     top_menu = st.columns(3)
     with top_menu[0]:
-        sort = st.radio("Sort Data", options=["Yes", "No"], horizontal=1, index=1)
+        sort = st.radio("Sort Data", options=["Yes", "No"], horizontal=True, index=1)
     if sort == "Yes":
         with top_menu[1]:
             sort_field = st.selectbox("Sort By", options=table_data.columns)
         with top_menu[2]:
-            sort_direction = st.radio(
-                "Direction", options=["⬆️", "⬇️"], horizontal=True
-            )
-        table_data = table_data.sort_values(
-            by=sort_field, ascending=sort_direction == "⬆️", ignore_index=True
-        )
+            sort_direction = st.radio("Direction", options=["⬆️", "⬇️"], horizontal=True)
+        table_data = table_data.sort_values(by=sort_field, ascending=sort_direction == "⬆️", ignore_index=True)
     pagination = st.container()
-
     bottom_menu = st.columns((4, 1, 1))
     with bottom_menu[2]:
         batch_size = st.selectbox("Page Size", options=[10, 25, 50, 100])
     with bottom_menu[1]:
-        total_pages = (
-            int(len(table_data) / batch_size) if int(len(table_data) / batch_size) > 0 else 1
-        )
-        current_page = st.number_input(
-            "Page", min_value=1, max_value=total_pages, step=1
-        )
+        total_pages = int(len(table_data) / batch_size) if int(len(table_data) / batch_size) > 0 else 1
+        current_page = st.number_input("Page", min_value=1, max_value=total_pages, step=1)
     with bottom_menu[0]:
-        st.markdown(f"Page **{current_page}** of **{total_pages}** ")
-
+        st.markdown(f"Page **{current_page}** of **{total_pages}**")
     pages = split_frame(table_data, batch_size)
     pagination.dataframe(data=pages[current_page - 1], use_container_width=True)
 
 def update_data():
     last_refresh = st.empty()
     last_refresh.text(f"Last refresh at: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-
     voters_count, candidates_count = fetch_voting_stats()
-
     st.markdown("""---""")
     col1, col2 = st.columns(2)
     col1.metric("Total Voters", voters_count)
     col2.metric("Total Candidates", candidates_count)
-
     consumer = create_kafka_consumer("aggregated_votes_per_candidate")
     data = fetch_data_from_kafka(consumer)
-
     results = pd.DataFrame(data)
-
-    # identify the leading candidates
     results = results.loc[results.groupby('candidate_id')['total_votes'].idxmax()]
     leading_candidate = results.loc[results['total_votes'].idxmax()]
-
-    # Display the leading candidate information
     st.markdown("""----""")
     st.header("Leading Candidate")
     col1, col2 = st.columns(2)
@@ -133,55 +123,43 @@ def update_data():
     with col2:
         st.header(leading_candidate['candidate_name'])
         st.subheader(leading_candidate['party_affiliation'])
-        st.subheader('Total Vote:{}'.format(leading_candidate['total_votes']))
-
-    # Display the statistics and visualization
+        st.subheader(f"Total Votes: {leading_candidate['total_votes']}")
     st.markdown("""----""")
     st.header('Voting Statistics')
     results = results[['candidate_id', 'candidate_name', 'party_affiliation', 'total_votes']]
-    results = results.reset_index(drop = True)
-
-    # Display the bar charts
+    results = results.reset_index(drop=True)
     col1, col2 = st.columns(2)
-
     with col1:
         bar_fig = plot_colored_bar_chart(results)
         st.pyplot(bar_fig)
-
     with col2:
         donut_fig = plot_donut_chart(results)
         st.pyplot(donut_fig)
-
     st.table(results)
-
-    # Fetch data from kafka an aggregated turnout by location
     location_consumer = create_kafka_consumer('aggregated_turnout_by_location')
     location_data = fetch_data_from_kafka(location_consumer)
     location_result = pd.DataFrame(location_data)
-
-    # max location indentification
     location_result = location_result.loc[location_result.groupby('state')['count'].idxmax()]
     location_result = location_result.reset_index(drop=True)
-
-    # display the location of voters
+    
+    # Determine leading party by state
+    location_result['leading_party'] = location_result.apply(lambda row: 'Demo Party' if row['total_votes_demo'] > row['total_votes_republic'] else 'Republic Party', axis=1)
+    
     st.header('Location of Voters')
-    paginate_table(location_result) 
-
-    st.session_state['last_update']  = time.time()
-
-st.title("Realtime Voting Dashboard")
-topic_name = "aggregated_votes_per_candidates"
+    paginate_table(location_result)
+    
+    st.header('Leading Party by State')
+    us_map = plot_us_map(location_result)
+    st.plotly_chart(us_map)
 
 def sidebar():
     if st.session_state.get('latest_update') is None:
         st.session_state['last_update'] = time.time()
-
     refresh_interval = st.sidebar.slider("Refresh interval (seconds)", 5, 60, 10)
     st_autorefresh(interval=refresh_interval * 1000, key="auto")
-
-    # Button to manually refresh data
     if st.sidebar.button('Refresh Data'):
         update_data()
 
+st.title("Realtime Presidential Election Dashboard")
 sidebar()
 update_data()
