@@ -75,3 +75,33 @@ This project is a Streamlit-based web application that provides real-time visual
 8. Run the Streamlit application:
    ```sh
    streamlit run streamlit-app.py
+
+## Configuration
+- Configure the following paths in spark-straming.py file:
+   -  postgresql-42.7.3.jar
+   -  Checkpoints folders
+
+## Usage
+- The application will start and be accessible in your web browser.
+- The main page displays total voters, various charts, and a map showing election results.
+- The page auto-refreshes every 5 seconds to fetch the latest data.
+
+## Project Structure
+```plaintext
+.
+├── app.py                # Main application script that sets up Streamlit interface and displays data
+├── docker-compose.yml    # Docker Compose configuration file to set up and run the containers
+├── Dockerfile            # Dockerfile for building the Docker image for the application
+├── spark_streaming.py    # Spark Streaming script for processing data in real-time
+├── requirements.txt      # Python dependencies required for the project
+├── README.md             # Project documentation
+├── checkpoints/          # Directory for Spark Streaming checkpoints
+    ├── checkpoint1/
+    ├── checkpoint2/
+    ├── checkpoint3/
+```
+## Screenshots
+<img width="1470" alt="image" src="https://github.com/user-attachments/assets/a515399c-9256-4e49-8be3-4e33ba070dbd">
+<img width="1470" alt="image" src="https://github.com/user-attachments/assets/24ac035e-d2de-4b3f-8d99-eac000e488e4">
+<img width="1470" alt="image" src="https://github.com/user-attachments/assets/d6361f77-05d3-4601-acc9-ce37c344b1cc">
+
