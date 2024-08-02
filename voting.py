@@ -56,7 +56,10 @@ if __name__ == "__main__":
                     'candidate_id': chosen_candidate['candidate_id'],
                     'state': voter['address']['state'],
                     'voting_time': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
-                    'vote': 1
+                    'vote': 1,
+                    'photo_url': chosen_candidate['photo_url'],
+                    'candidate_name': chosen_candidate['candidate_name'],
+                    'party_affiliation': chosen_candidate['party_affiliation']
                 }
 
                 try:

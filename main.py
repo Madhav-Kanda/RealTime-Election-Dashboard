@@ -119,25 +119,25 @@ if __name__ == '__main__':
         conn = psycopg2.connect("host=localhost dbname=voting user=postgres password=postgres")
         cur = conn.cursor()  # Cursor used for executing commands like 'Select', 'Insert', 'Update', 'Delete'
         
-        # create_tables(conn, cur)
-        # cur.execute(""" 
-        #     SELECT * FROM candidates
-        # """)
-        # candidates = cur.fetchall()
+        create_tables(conn, cur)
+        cur.execute(""" 
+            SELECT * FROM candidates
+        """)
+        candidates = cur.fetchall()
         
-        # total_candidates = 2  # Two candidates, one from each major party
-        # if len(candidates) == 0:
-        #     for i in range(total_candidates):
-        #         candidate = generate_candidate_data(i, total_candidates)
-        #         cur.execute("""
-        #                     INSERT INTO candidates(candidate_id, candidate_name, party_affiliation, biography, campaign_platform, photo_url, experience, policies)
-        #                     VALUES(%s, %s, %s, %s, %s, %s, %s, %s)
-        #                 """, (
-        #                     candidate['candidate_id'], candidate['candidate_name'], candidate['party_affiliation'], candidate['biography'], candidate['campaign_platform'], candidate['photo_url'], candidate['experience'], candidate['policies']
-        #                 ))
-        #         conn.commit()
+        total_candidates = 2  # Two candidates, one from each major party
+        if len(candidates) == 0:
+            for i in range(total_candidates):
+                candidate = generate_candidate_data(i, total_candidates)
+                cur.execute("""
+                            INSERT INTO candidates(candidate_id, candidate_name, party_affiliation, biography, campaign_platform, photo_url, experience, policies)
+                            VALUES(%s, %s, %s, %s, %s, %s, %s, %s)
+                        """, (
+                            candidate['candidate_id'], candidate['candidate_name'], candidate['party_affiliation'], candidate['biography'], candidate['campaign_platform'], candidate['photo_url'], candidate['experience'], candidate['policies']
+                        ))
+                conn.commit()
 
-        for i in range(2000):
+        for i in range(1000):
             voter_data = generate_voter_data()
             insert_voters(conn, cur, voter_data)
             producer.produce(

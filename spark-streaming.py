@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, TimestampType, IntegerType
-from pyspark.sql.functions import col, from_json
+from pyspark.sql.functions import col, from_json, when
 from pyspark.sql.functions import sum as _sum
 
 if __name__ == "__main__":
@@ -16,7 +16,10 @@ if __name__ == "__main__":
         StructField('candidate_id', StringType(), True),
         StructField('voting_time', TimestampType(), True),
         StructField('state', StringType(), True),
-        StructField('gender', StringType(), True),  # Added gender field
+        StructField('gender', StringType(), True),
+        StructField('candidate_name', StringType(), True),
+        StructField('party_affiliation', StringType(), True),
+        StructField('photo_url', StringType(), True),
         StructField('vote', IntegerType(), True)
     ])
 
@@ -37,9 +40,15 @@ if __name__ == "__main__":
     enriched_votes_df = votes_df.withWatermark('voting_time', '1 minute')
 
     # Aggregate votes per candidate and turnout by location and gender
-    votes_per_candidate = enriched_votes_df.groupBy('candidate_id', 'state').agg(_sum('vote').alias('total_votes'))
-    turnout_by_location = enriched_votes_df.groupBy('state').count().alias('total_votes')
-    turnout_by_gender = enriched_votes_df.groupBy('gender').count().alias('total_votes')
+    votes_per_candidate = enriched_votes_df.groupBy('candidate_id', 'candidate_name', 'party_affiliation', 'photo_url', 'state').agg(_sum('vote').alias('total_votes'))
+
+    # Aggregating votes by party affiliation for each state
+    turnout_by_location = enriched_votes_df.groupBy('state').agg(
+        _sum(when(col('party_affiliation') == 'Demo Party', col('vote')).otherwise(0)).alias('total_votes_demo'),
+        _sum(when(col('party_affiliation') == 'Republic Party', col('vote')).otherwise(0)).alias('total_votes_republic')
+    )
+
+    turnout_by_gender = enriched_votes_df.groupBy('gender').agg(_sum('vote').alias('total_votes'))
 
     # Writing the results to Kafka
     votes_per_candidate_to_kafka = (votes_per_candidate.selectExpr('to_json(struct(*)) AS value')

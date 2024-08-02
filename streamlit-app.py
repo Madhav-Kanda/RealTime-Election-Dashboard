@@ -9,6 +9,20 @@ import numpy as np
 from streamlit_autorefresh import st_autorefresh
 import plotly.express as px
 
+# State name to code mapping
+state_name_to_code = {
+    'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR', 'California': 'CA',
+    'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE', 'Florida': 'FL', 'Georgia': 'GA',
+    'Hawaii': 'HI', 'Idaho': 'ID', 'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA', 'Kansas': 'KS',
+    'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD', 'Massachusetts': 'MA',
+    'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS', 'Missouri': 'MO', 'Montana': 'MT',
+    'Nebraska': 'NE', 'Nevada': 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ', 'New Mexico': 'NM',
+    'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH', 'Oklahoma': 'OK',
+    'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC', 'South Dakota': 'SD',
+    'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT', 'Vermont': 'VT', 'Virginia': 'VA', 'Washington': 'WA',
+    'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY'
+}
+
 @st.cache_data
 def fetch_voting_stats():
     conn = psycopg2.connect("host=localhost dbname=voting user=postgres password=postgres")
@@ -61,8 +75,10 @@ def plot_donut_chart(data):
     return fig
 
 def plot_us_map(state_results):
+    # Map state names to codes
+    state_results['state_code'] = state_results['state'].map(state_name_to_code)
     fig = px.choropleth(state_results,
-                        locations='state', 
+                        locations='state_code', 
                         locationmode="USA-states", 
                         color='leading_party',
                         scope="usa",
@@ -71,7 +87,7 @@ def plot_us_map(state_results):
                             "Republic Party": "red"
                         },
                         hover_name='state',
-                        hover_data=['total_votes'])
+                        hover_data=['total_votes_demo', 'total_votes_republic'])
     fig.update_layout(title_text='Leading Party by State', geo_scope='usa')
     return fig
 
@@ -139,7 +155,6 @@ def update_data():
     location_consumer = create_kafka_consumer('aggregated_turnout_by_location')
     location_data = fetch_data_from_kafka(location_consumer)
     location_result = pd.DataFrame(location_data)
-    location_result = location_result.loc[location_result.groupby('state')['count'].idxmax()]
     location_result = location_result.reset_index(drop=True)
     
     # Determine leading party by state
