@@ -120,9 +120,7 @@ def paginate_table(table_data):
 
 def update_data():
     last_refresh = st.empty()
-    last_refresh.text(f"Last refresh at: {time.strftime('%Y-%m-%d %H:%M:%S')}")
     voters_count, candidates_count = fetch_voting_stats()
-    st.markdown("""---""")
     col1, col2 = st.columns(2)
     col1.metric("Total Voters", voters_count)
     col2.metric("Total Candidates", candidates_count)
@@ -135,27 +133,7 @@ def update_data():
     'photo_url': 'first',
     'total_votes': 'sum'}).reset_index()
     leading_candidate = interim_results.loc[interim_results['total_votes'].idxmax()]
-    st.markdown("""----""")
-    st.header("Leading Candidate")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.image(leading_candidate['photo_url'], width=200)
-    with col2:
-        st.header(leading_candidate['candidate_name'])
-        st.subheader(leading_candidate['party_affiliation'])
-        st.subheader(f"Total Votes: {leading_candidate['total_votes']}")
-    st.markdown("""----""")
-    st.header('Voting Statistics')
-    results = results[['candidate_name', 'party_affiliation', 'total_votes']]
-    results = results.reset_index(drop=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        bar_fig = plot_colored_bar_chart(interim_results)
-        st.pyplot(bar_fig)
-    with col2:
-        donut_fig = plot_donut_chart(interim_results)
-        st.pyplot(donut_fig)
-    # st.table(results)
+   
     location_consumer = create_kafka_consumer('aggregated_turnout_by_location')
     location_data = fetch_data_from_kafka(location_consumer)
     location_result = pd.DataFrame(location_data)
@@ -167,34 +145,46 @@ def update_data():
     # Determine leading party by state
     location_result['leading_party'] = location_result.apply(lambda row: 'Demo Party' if row['total_votes_demo'] > row['total_votes_republic'] else 'Republic Party', axis=1)
     
-    demo_greater = (location_result['total_votes_demo'] > location_result['total_votes_republic']).sum()
-    republic_greater = (location_result['total_votes_demo'] < location_result['total_votes_republic']).sum()
-    
-    st.title("Voting Comparison Results")
+    demo_states = (location_result['total_votes_demo'] > location_result['total_votes_republic']).sum()
+    republic_states = (location_result['total_votes_demo'] < location_result['total_votes_republic']).sum()
+
+    demo_votes = interim_results[interim_results['party_affiliation'] == 'Demo Party']['total_votes'].values[0]
+    republic_votes = interim_results[interim_results['party_affiliation'] == 'Republic Party']['total_votes'].values[0]
+
+    us_map = plot_us_map(location_result)
+    st.plotly_chart(us_map)
+
 
     col1, col2 = st.columns(2)
-
     with col1:
-        st.metric(label="States where Demo Party leads", value=demo_greater, delta=float(demo_greater - republic_greater))
+        st.metric(label="States where Demo Party leads", value=demo_states, delta=float(demo_states - republic_states))
+        st.metric(label="Votes won by Demo Party", value = demo_votes, delta=int(demo_votes-republic_votes))
 
     with col2:
-        st.metric(label="States where Republic Party leads", value=republic_greater, delta=float(republic_greater - demo_greater))
+        st.metric(label="States where Republic Party leads", value=republic_states, delta=float(republic_states - demo_states))
+        st.metric(label="Votes won by Republic Party", value = republic_votes, delta=int(republic_votes - demo_votes))
+
+    st.header("Leading Candidate (Max number of states won)")
+    if(demo_votes>republic_votes): leading_candidate = interim_results[interim_results['party_affiliation'] == 'Demo Party'].iloc[0]
+    else: leading_candidate = interim_results[interim_results['party_affiliation'] == 'Demo Party'].iloc[0]
+    col1, col2 = st.columns(2)
+    with col1:
+        st.image(leading_candidate['photo_url'], width=200)
+    with col2:
+        st.header(leading_candidate['candidate_name'])
+        st.subheader(leading_candidate['party_affiliation'])
+        st.subheader(f"Total Votes: {leading_candidate['total_votes']}")
+    st.markdown("""----""")
 
     st.header('Location of Voters')
     paginate_table(location_result)
-    
-    st.header('Leading Party by State')
-    us_map = plot_us_map(location_result)
-    st.plotly_chart(us_map)
+
 
 def sidebar():
     if st.session_state.get('latest_update') is None:
         st.session_state['last_update'] = time.time()
-    refresh_interval = st.sidebar.slider("Refresh interval (seconds)", 5, 60, 10)
-    st_autorefresh(interval=refresh_interval * 1000, key="auto")
-    if st.sidebar.button('Refresh Data'):
-        update_data()
+    st_autorefresh(interval=5 * 1000, key="auto")
 
-st.title("Realtime Presidential Election Dashboard")
+st.title("RealTime Presidential Election Results")
 sidebar()
 update_data()
