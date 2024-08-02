@@ -160,7 +160,7 @@ def update_data():
 
     st.header("Leading Candidate (Max number of states won)")
     if(demo_votes>republic_votes): leading_candidate = interim_results[interim_results['party_affiliation'] == 'Demo Party'].iloc[0]
-    else: leading_candidate = interim_results[interim_results['party_affiliation'] == 'Demo Party'].iloc[0]
+    else: leading_candidate = interim_results[interim_results['party_affiliation'] == 'Republic Party'].iloc[0]
     col1, col2 = st.columns(2)
     with col1:
         st.image(leading_candidate['photo_url'], width=200)
