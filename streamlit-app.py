@@ -176,11 +176,9 @@ def update_data():
 
     with col1:
         st.metric(label="States where Demo Party leads", value=demo_greater, delta=float(demo_greater - republic_greater))
-        st.progress(demo_greater / len(location_result))
 
     with col2:
         st.metric(label="States where Republic Party leads", value=republic_greater, delta=float(republic_greater - demo_greater))
-        st.progress(republic_greater / len(location_result))
 
     st.header('Location of Voters')
     paginate_table(location_result)
