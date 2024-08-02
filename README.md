@@ -5,7 +5,6 @@ This project is a Streamlit-based web application that provides real-time visual
 ## Screenshots
 <img width="1470" alt="image" src="https://github.com/user-attachments/assets/a515399c-9256-4e49-8be3-4e33ba070dbd">
 <img width="1470" alt="image" src="https://github.com/user-attachments/assets/24ac035e-d2de-4b3f-8d99-eac000e488e4">
-<img width="1470" alt="image" src="https://github.com/user-attachments/assets/d6361f77-05d3-4601-acc9-ce37c344b1cc">
 
 ## Features
 
