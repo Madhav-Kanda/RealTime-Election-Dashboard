@@ -43,11 +43,11 @@ if __name__ == "__main__":
     votes_per_candidate = enriched_votes_df.groupBy('candidate_id', 'candidate_name', 'party_affiliation', 'photo_url', 'state').agg(_sum('vote').alias('total_votes'))
 
     # Aggregating votes by party affiliation for each state
-    turnout_by_location = enriched_votes_df.groupBy('state').agg(
+    turnout_by_location = enriched_votes_df.groupBy('state', 'candidate_id', 'candidate_name', 'photo_url').agg(
         _sum(when(col('party_affiliation') == 'Demo Party', col('vote')).otherwise(0)).alias('total_votes_demo'),
         _sum(when(col('party_affiliation') == 'Republic Party', col('vote')).otherwise(0)).alias('total_votes_republic')
     )
-
+    # turnout_by_location.show()
     turnout_by_gender = enriched_votes_df.groupBy('gender').agg(_sum('vote').alias('total_votes'))
 
     # Writing the results to Kafka

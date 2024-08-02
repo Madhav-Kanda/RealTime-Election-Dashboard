@@ -88,7 +88,7 @@ def plot_us_map(state_results):
                         },
                         hover_name='state',
                         hover_data=['total_votes_demo', 'total_votes_republic'])
-    fig.update_layout(title_text='Leading Party by State', geo_scope='usa')
+    fig.update_layout(geo_scope='usa')
     return fig
 
 @st.cache_data(show_spinner=False)
@@ -129,8 +129,12 @@ def update_data():
     consumer = create_kafka_consumer("aggregated_votes_per_candidate")
     data = fetch_data_from_kafka(consumer)
     results = pd.DataFrame(data)
-    results = results.loc[results.groupby('candidate_id')['total_votes'].idxmax()]
-    leading_candidate = results.loc[results['total_votes'].idxmax()]
+    interim_results = results.groupby('candidate_id').agg({
+    'candidate_name': 'first',
+    'party_affiliation': 'first',
+    'photo_url': 'first',
+    'total_votes': 'sum'}).reset_index()
+    leading_candidate = interim_results.loc[interim_results['total_votes'].idxmax()]
     st.markdown("""----""")
     st.header("Leading Candidate")
     col1, col2 = st.columns(2)
@@ -142,24 +146,42 @@ def update_data():
         st.subheader(f"Total Votes: {leading_candidate['total_votes']}")
     st.markdown("""----""")
     st.header('Voting Statistics')
-    results = results[['candidate_id', 'candidate_name', 'party_affiliation', 'total_votes']]
+    results = results[['candidate_name', 'party_affiliation', 'total_votes']]
     results = results.reset_index(drop=True)
     col1, col2 = st.columns(2)
     with col1:
-        bar_fig = plot_colored_bar_chart(results)
+        bar_fig = plot_colored_bar_chart(interim_results)
         st.pyplot(bar_fig)
     with col2:
-        donut_fig = plot_donut_chart(results)
+        donut_fig = plot_donut_chart(interim_results)
         st.pyplot(donut_fig)
-    st.table(results)
+    # st.table(results)
     location_consumer = create_kafka_consumer('aggregated_turnout_by_location')
     location_data = fetch_data_from_kafka(location_consumer)
     location_result = pd.DataFrame(location_data)
     location_result = location_result.reset_index(drop=True)
-    
+    location_result = location_result.groupby('state').agg({
+    'total_votes_demo': 'sum',
+    'total_votes_republic': 'sum'}).reset_index()
+
     # Determine leading party by state
     location_result['leading_party'] = location_result.apply(lambda row: 'Demo Party' if row['total_votes_demo'] > row['total_votes_republic'] else 'Republic Party', axis=1)
     
+    demo_greater = (location_result['total_votes_demo'] > location_result['total_votes_republic']).sum()
+    republic_greater = (location_result['total_votes_demo'] < location_result['total_votes_republic']).sum()
+    
+    st.title("Voting Comparison Results")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.metric(label="States where Demo Party leads", value=demo_greater, delta=float(demo_greater - republic_greater))
+        st.progress(demo_greater / len(location_result))
+
+    with col2:
+        st.metric(label="States where Republic Party leads", value=republic_greater, delta=float(republic_greater - demo_greater))
+        st.progress(republic_greater / len(location_result))
+
     st.header('Location of Voters')
     paginate_table(location_result)
     
