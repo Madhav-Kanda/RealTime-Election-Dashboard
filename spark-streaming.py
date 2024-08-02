@@ -5,9 +5,9 @@ from pyspark.sql.functions import sum as _sum
 
 if __name__ == "__main__":
     spark = (SparkSession.builder
-             .appName("Voting-System")
+             .appName("RealTime-Election-Dashboard")
              .config('spark.jars.packages', 'org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0')  # spark kafka integration
-             .config('spark.jars', '/Users/madhav/Desktop/Code/Voting-system/postgresql-42.7.3.jar')  # postgresql drivers
+             .config('spark.jars', '/Users/madhav/Desktop/Code/RealTime-Election-System/RealTime-Election-Dashboard/postgresql-42.7.3.jar')  # postgresql drivers
              .config('spark.sql.adaptive.enable', 'false')  # disable adaptive query execution
              .getOrCreate())
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
                                     .format('kafka')
                                     .option('kafka.bootstrap.servers', 'localhost:9092')
                                     .option('topic', 'aggregated_votes_per_candidate')
-                                    .option('checkpointLocation', '/Users/madhav/Desktop/Code/Voting-system/checkpoints/checkpoint1')
+                                    .option('checkpointLocation', '/Users/madhav/Desktop/Code/RealTime-Election-System/RealTime-Election-Dashboard/checkpoints/checkpoint1')
                                     .outputMode('update')
                                     .start())
 
@@ -65,7 +65,7 @@ if __name__ == "__main__":
                                     .format('kafka')
                                     .option('kafka.bootstrap.servers', 'localhost:9092')
                                     .option('topic', 'aggregated_turnout_by_location')
-                                    .option('checkpointLocation', '/Users/madhav/Desktop/Code/Voting-system/checkpoints/checkpoint2')
+                                    .option('checkpointLocation', '/Users/madhav/Desktop/Code/RealTime-Election-System/RealTime-Election-Dashboard/checkpoints/checkpoint2')
                                     .outputMode('update')
                                     .start())
 
@@ -74,7 +74,7 @@ if __name__ == "__main__":
                                   .format('kafka')
                                   .option('kafka.bootstrap.servers', 'localhost:9092')
                                   .option('topic', 'aggregated_turnout_by_gender')
-                                  .option('checkpointLocation', '/Users/madhav/Desktop/Code/Voting-system/checkpoints/checkpoint3')
+                                  .option('checkpointLocation', '/Users/madhav/Desktop/Code/RealTime-Election-System/RealTime-Election-Dashboard/checkpoints/checkpoint3')
                                   .outputMode('update')
                                   .start())
 
