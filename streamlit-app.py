@@ -166,7 +166,7 @@ def update_data():
 
     st.header("Leading Candidate (Max number of states won)")
     if(demo_votes>republic_votes): leading_candidate = interim_results[interim_results['party_affiliation'] == 'Demo Party'].iloc[0]
-    else: leading_candidate = interim_results[interim_results['party_affiliation'] == 'Demo Party'].iloc[0]
+    else: leading_candidate = interim_results[interim_results['party_affiliation'] == 'Republic Party'].iloc[0]
     col1, col2 = st.columns(2)
     with col1:
         st.image(leading_candidate['photo_url'], width=200)
@@ -179,12 +179,31 @@ def update_data():
     st.header('Location of Voters')
     paginate_table(location_result)
 
-
 def sidebar():
     if st.session_state.get('latest_update') is None:
         st.session_state['last_update'] = time.time()
     st_autorefresh(interval=5 * 1000, key="auto")
 
-st.title("RealTime Presidential Election Results")
+# Layout and Style Enhancements
+st.set_page_config(
+    page_title="RealTime Presidential Election Results",
+    page_icon="🗳️",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+st.title("🇺🇸 RealTime Presidential Election Results 🇺🇸")
 sidebar()
+
+st.markdown("""
+    <style>
+        .sidebar .sidebar-content {
+            background-color: #ffffff;
+        }
+        .css-18e3th9 {
+            padding: 2rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
 update_data()
