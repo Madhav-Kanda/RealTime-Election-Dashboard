@@ -32,11 +32,7 @@ def fetch_voting_stats():
     cur.execute("SELECT COUNT(*) FROM voters")
     voters_count = cur.fetchone()[0]
     
-    # Fetch total number of candidates
-    cur.execute("SELECT COUNT(*) FROM candidates")
-    candidates_count = cur.fetchone()[0]
-    
-    return voters_count, candidates_count
+    return voters_count
 
 def create_kafka_consumer(topic_name):
     consumer = KafkaConsumer(
@@ -55,25 +51,6 @@ def fetch_data_from_kafka(consumer):
             data.append(sub_message.value)
     return data
 
-def plot_colored_bar_chart(results):
-    data_type = results['candidate_name']
-    colors = plt.cm.viridis(np.linspace(0, 1, len(data_type)))
-    plt.bar(data_type, results['total_votes'], color=colors)
-    plt.xlabel('Candidate')
-    plt.ylabel('Total Votes')
-    plt.xticks(rotation=90)
-    plt.title('Total Votes by Candidate')
-    return plt
-
-def plot_donut_chart(data):
-    labels = list(data['candidate_name'])
-    sizes = list(data['total_votes'])
-    fig, ax = plt.subplots()
-    ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140, wedgeprops=dict(width=0.3))
-    ax.axis('equal')
-    plt.title("Candidates' Votes Distribution")
-    return fig
-
 def plot_us_map(state_results):
     # Map state names to codes
     state_results['state_code'] = state_results['state'].map(state_name_to_code)
@@ -88,7 +65,21 @@ def plot_us_map(state_results):
                         },
                         hover_name='state',
                         hover_data=['total_votes_demo', 'total_votes_republic'])
-    fig.update_layout(geo_scope='usa')
+    fig.update_layout(
+        geo=dict(
+            lakecolor='rgb(0, 0, 0)',
+            landcolor='rgb(217, 217, 217)',
+            showland=True,
+            subunitwidth=1,
+            countrywidth=1,
+            bgcolor='rgb(17, 17, 17)'  # Same color as Streamlit dark background
+        ),
+        geo_scope='usa',
+        paper_bgcolor='rgb(17, 17, 17)',  # Same color as Streamlit dark background
+        plot_bgcolor='rgb(17, 17, 17)',   # Same color as Streamlit dark background
+        font=dict(color='white'),
+        margin=dict(l=0, r=0, t=50, b=0)
+    )
     return fig
 
 @st.cache_data(show_spinner=False)
@@ -120,10 +111,14 @@ def paginate_table(table_data):
 
 def update_data():
     last_refresh = st.empty()
-    voters_count, candidates_count = fetch_voting_stats()
-    col1, col2 = st.columns(2)
-    col1.metric("Total Voters", voters_count)
-    col2.metric("Total Candidates", candidates_count)
+    voters_count = fetch_voting_stats()
+    st.markdown(f"""
+        <div style="text-align: center; padding: 10px; background-color: #1f77b4; color: white; border-radius: 10px; margin-bottom: 10px;">
+            <h2>Total Voters</h2>
+            <h1>{voters_count}</h1>
+        </div>
+    """, unsafe_allow_html=True)
+
     consumer = create_kafka_consumer("aggregated_votes_per_candidate")
     data = fetch_data_from_kafka(consumer)
     results = pd.DataFrame(data)
@@ -154,7 +149,6 @@ def update_data():
     us_map = plot_us_map(location_result)
     st.plotly_chart(us_map)
 
-
     col1, col2 = st.columns(2)
     with col1:
         st.metric(label="States where Demo Party leads", value=demo_states, delta=float(demo_states - republic_states))
@@ -166,7 +160,7 @@ def update_data():
 
     st.header("Leading Candidate (Max number of states won)")
     if(demo_votes>republic_votes): leading_candidate = interim_results[interim_results['party_affiliation'] == 'Demo Party'].iloc[0]
-    else: leading_candidate = interim_results[interim_results['party_affiliation'] == 'Republic Party'].iloc[0]
+    else: leading_candidate = interim_results[interim_results['party_affiliation'] == 'Demo Party'].iloc[0]
     col1, col2 = st.columns(2)
     with col1:
         st.image(leading_candidate['photo_url'], width=200)
